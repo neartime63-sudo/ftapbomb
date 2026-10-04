@@ -1,0 +1,353 @@
+-- Загрузка библиотеки Rayfield
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- Создание главного окна с системой ключей и кнопкой ссылки
+local Window = Rayfield:CreateWindow({
+   Name = "FTAP Script Hub",
+   LoadingTitle = "Загрузка интерфейса",
+   LoadingSubtitle = "Проверка доступа...",
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = "FTAP_Config",
+      FileName = "ScriptHub"
+   },
+   Discord = {
+      Enabled = false,
+      Invite = "", 
+      RememberJoins = true 
+   },
+   KeySystem = true, -- Включаем систему ключей
+   KeySettings = {
+      Title = "Требуется ключ",
+      Subtitle = "Пройдите проверку для получения доступа",
+      Note = "Нажмите на кнопку ниже, чтобы скопировать ссылку на ключ", -- Текст-подсказка
+      FileName = "FTAP_Key",
+      SaveKey = true, -- Сохранять введенный ключ после успешного ввода
+      GrabKeyFromSite = false,
+      Key = {"Bomb"} -- Сам ключ
+   }
+})
+
+-- Уведомление об успешном входе
+Rayfield:Notify({
+   Title = "Доступ разрешен",
+   Content = "Ключ успешно принят. Добро пожаловать!",
+   Duration = 5,
+   Image = 4483362458,
+})
+
+-- Создаем вкладку в меню
+local Tab = Window:CreateTab("Главная", 4483362458)
+
+-- Кнопка для получения ключа прямо внутри меню Rayfield (копирует твою ссылку)
+Tab:CreateButton({
+   Name = "Получить ключ (Скопировать ссылку)",
+   Callback = function()
+      if setclipboard then
+         setclipboard("https://direct-link.net/9558532/xofWsejQdk79")
+         Rayfield:Notify({
+            Title = "Ссылка скопирована",
+            Content = "Ссылка на Linkvertise скопирована в буфер обмена!",
+            Duration = 4,
+         })
+      else
+         Rayfield:Notify({
+            Title = "Ошибка",
+            Content = "Ваш экплойт не поддерживает функцию setclipboard.",
+            Duration = 4,
+         })
+      end
+   end,
+})
+
+-- Кнопка, которая запускает сам скрипт с телекинезом
+Tab:CreateButton({
+   Name = "Запустить FTAP (Телекинез)",
+   Callback = function()
+        -- ========================================== --
+        -- НАЧАЛО СКРИПТА ТЕЛЕКИНЕЗА И РАКЕТ (FTAP)
+        -- ========================================== --
+        local Players = game:GetService("Players")
+        local RunService = game:GetService("RunService")
+        local UserInput = game:GetService("UserInputService")
+        local StarterGui = game:GetService("StarterGui")
+
+        local LocalPlayer = Players.LocalPlayer
+        local Camera = workspace.CurrentCamera
+
+        local selectedTargets = {} 
+        local isFlying = false
+        local currentMissileIndex = 1
+        local MAX_TARGETS = 4
+        local SPEED = 200 
+
+        local currentLinear = nil
+        local currentAttach = nil
+
+        if getgenv().FTAP_Gui then getgenv().FTAP_Gui:Destroy() end
+
+        local gui = Instance.new("ScreenGui")
+        gui.Name = "FTAP_Gui"
+        gui.ResetOnSpawn = false
+        gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+        getgenv().FTAP_Gui = gui
+
+        local crosshair = Instance.new("Frame")
+        crosshair.Size = UDim2.new(0, 6, 0, 6)
+        crosshair.Position = UDim2.new(0.5, -3, 0.5, -3)
+        crosshair.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        crosshair.BorderSizePixel = 0
+        Instance.new("UICorner", crosshair).CornerRadius = UDim.new(1, 0)
+        crosshair.Parent = gui
+
+        local toggleBtn = Instance.new("TextButton")
+        toggleBtn.Size = UDim2.new(0, 70, 0, 45)
+        toggleBtn.Position = UDim2.new(0, 15, 0, 15)
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        toggleBtn.Font = Enum.Font.SourceSansBold
+        toggleBtn.Text = "FTAP"
+        toggleBtn.TextScaled = true
+        toggleBtn.Parent = gui
+        Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
+        Instance.new("UIStroke", toggleBtn).Color = Color3.fromRGB(255, 255, 255)
+
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, 200, 0, 65)
+        btn.Position = UDim2.new(0.6, 0, 0.7, 0)
+        btn.BackgroundColor3 = Color3.fromRGB(40, 120, 240)
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.SourceSansBold
+        btn.Text = "GRAB (0/" .. MAX_TARGETS .. ")"
+        btn.TextScaled = true
+        btn.Active = true
+        btn.Parent = gui
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+        Instance.new("UIStroke", btn).Color = Color3.fromRGB(255, 255, 255)
+        Instance.new("UIStroke", btn).Thickness = 2.5
+        Instance.new("UIPadding", btn).PaddingTop = UDim.new(0, 5)
+        Instance.new("UIPadding", btn).PaddingBottom = UDim.new(0, 5)
+
+        toggleBtn.Activated:Connect(function()
+            btn.Visible = not btn.Visible
+            crosshair.Visible = not crosshair.Visible
+        end)
+
+        local function makeDraggable(obj)
+            local dragging, dragStart, startPos
+            obj.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragging = true
+                    dragStart = input.Position
+                    startPos = obj.Position
+                end
+            end)
+            UserInput.InputChanged:Connect(function(input)
+                if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+                    local delta = input.Position - dragStart
+                    obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                end
+            end)
+            UserInput.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragging = false
+                end
+            end)
+        end
+        makeDraggable(btn)
+        makeDraggable(toggleBtn)
+
+        local launchNextMissile
+        local dropCurrentMissile
+
+        local function stopAll()
+            isFlying = false
+            if currentLinear then currentLinear:Destroy() end
+            if currentAttach then currentAttach:Destroy() end
+            
+            for _, td in ipairs(selectedTargets) do
+                if td.highlight then td.highlight:Destroy() end
+                if td.orbitAlign then td.orbitAlign:Destroy() end
+                if td.orbitAttach then td.orbitAttach:Destroy() end
+                if td.charAttach then td.charAttach:Destroy() end
+                if td.humanoid then
+                    pcall(function() td.humanoid.PlatformStand = false end)
+                end
+            end
+            
+            table.clear(selectedTargets)
+            currentMissileIndex = 1
+            
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                Camera.CameraSubject = LocalPlayer.Character.Humanoid
+            end
+            
+            btn.Text = "GRAB (0/" .. MAX_TARGETS .. ")"
+            btn.BackgroundColor3 = Color3.fromRGB(40, 120, 240)
+        end
+
+        function dropCurrentMissile()
+            if not isFlying then return end
+            
+            local targetData = selectedTargets[currentMissileIndex]
+            if targetData then
+                if currentLinear then currentLinear:Destroy() end
+                if currentAttach then currentAttach:Destroy() end
+                if targetData.highlight then targetData.highlight:Destroy() end
+                if targetData.humanoid then
+                    pcall(function() targetData.humanoid.PlatformStand = false end)
+                end
+            end
+            
+            currentMissileIndex = currentMissileIndex + 1
+            launchNextMissile()
+        end
+
+        function launchNextMissile()
+            while currentMissileIndex <= MAX_TARGETS do
+                local td = selectedTargets[currentMissileIndex]
+                if td and td.part and td.part:IsDescendantOf(workspace) then break else currentMissileIndex = currentMissileIndex + 1 end
+            end
+
+            if currentMissileIndex > MAX_TARGETS then stopAll() return end
+            
+            local td = selectedTargets[currentMissileIndex]
+            local part = td.part
+            
+            if td.orbitAlign then td.orbitAlign:Destroy() end
+            if td.humanoid then pcall(function() td.humanoid.PlatformStand = true end) end
+            
+            currentAttach = Instance.new("Attachment", part)
+            currentLinear = Instance.new("LinearVelocity")
+            currentLinear.MaxForce = 99999999 
+            currentLinear.Attachment0 = currentAttach
+            currentLinear.VectorVelocity = Camera.CFrame.LookVector * SPEED
+            currentLinear.Parent = part
+            
+            Camera.CameraSubject = part
+            btn.Text = "DROP NEXT (" .. currentMissileIndex .. "/" .. MAX_TARGETS .. ")"
+            btn.BackgroundColor3 = Color3.fromRGB(240, 40, 40)
+            
+            local isCollisionActive = false
+            task.delay(0.4, function() isCollisionActive = true end)
+            
+            local touchConn
+            touchConn = part.Touched:Connect(function(hitPart)
+                if not isFlying or not isCollisionActive then return end
+                if hitPart and not hitPart:IsDescendantOf(td.model or td.part) and hitPart ~= LocalPlayer.Character then
+                    if touchConn then touchConn:Disconnect() end
+                    dropCurrentMissile()
+                end
+            end)
+        end
+
+        RunService.Heartbeat:Connect(function()
+            if not isFlying then return end
+            local targetData = selectedTargets[currentMissileIndex]
+            if targetData and targetData.part and targetData.part:IsDescendantOf(workspace) then
+                if currentLinear then
+                    currentLinear.VectorVelocity = Camera.CFrame.LookVector * SPEED
+                    targetData.part.AssemblyLinearVelocity = Camera.CFrame.LookVector * SPEED
+                end
+            else
+                dropCurrentMissile()
+            end
+        end)
+
+        btn.Activated:Connect(function()
+            if isFlying then
+                dropCurrentMissile()
+            else
+                if #selectedTargets < MAX_TARGETS then
+                    local ray = Camera:ViewportPointToRay(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                    local params = RaycastParams.new()
+                    if LocalPlayer.Character then params.FilterDescendantsInstances = {LocalPlayer.Character} end
+                    
+                    local hit = workspace:Raycast(ray.Origin, ray.Direction * 1000, params)
+                    if hit and hit.Instance then
+                        local obj = hit.Instance
+                        if obj.Name == "Baseplate" or obj.Name == "Terrain" then return end
+                        
+                        local model = obj:FindFirstAncestorOfClass("Model")
+                        local targetPart = obj
+                        local humanoid = nil
+                        
+                        if model then
+                            humanoid = model:FindFirstChildOfClass("Humanoid")
+                            if humanoid and model:FindFirstChild("HumanoidRootPart") then
+                                targetPart = model.HumanoidRootPart
+                            elseif model.PrimaryPart then
+                                targetPart = model.PrimaryPart
+                            end
+                        end
+                        
+                        -- Защита от захвата карты
+                        if not humanoid and obj.Anchored then
+                            local oldText = btn.Text
+                            btn.Text = "ЭТО ЧАСТЬ КАРТЫ!"
+                            task.delay(1, function() if not isFlying then btn.Text = oldText end end)
+                            return
+                        end
+                        
+                        local alreadySelected = false
+                        for _, td in ipairs(selectedTargets) do
+                            if td.part == targetPart then alreadySelected = true break end
+                        end
+
+                        if not alreadySelected then
+                            pcall(function() targetPart.Anchored = false obj.Anchored = false end)
+                            
+                            local hl = Instance.new("Highlight")
+                            hl.FillColor = Color3.fromRGB(40, 200, 40)
+                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                            hl.Parent = targetPart
+                            
+                            local charAttach = Instance.new("Attachment", LocalPlayer.Character.HumanoidRootPart)
+                            local orbitAttach = Instance.new("Attachment", targetPart)
+                            
+                            local count = #selectedTargets + 1
+                            local angle = (count / MAX_TARGETS) * math.pi * 2
+                            charAttach.Position = Vector3.new(math.cos(angle) * 6, 5, math.sin(angle) * 6)
+                            
+                            local orbitAlign = Instance.new("AlignPosition")
+                            orbitAlign.Mode = Enum.PositionAlignmentMode.TwoAttachment
+                            orbitAlign.Attachment0 = orbitAttach
+                            orbitAlign.Attachment1 = charAttach
+                            orbitAlign.MaxForce = 99999999
+                            orbitAlign.Responsiveness = 40
+                            orbitAlign.Parent = targetPart
+                            
+                            if humanoid then pcall(function() humanoid.PlatformStand = true end) end
+                            
+                            table.insert(selectedTargets, {
+                                part = targetPart, model = model, humanoid = humanoid, highlight = hl,
+                                charAttach = charAttach, orbitAttach = orbitAttach, orbitAlign = orbitAlign
+                            })
+                            
+                            if #selectedTargets < MAX_TARGETS then
+                                btn.Text = "GRAB (" .. #selectedTargets .. "/" .. MAX_TARGETS .. ")"
+                            else
+                                btn.Text = "LAUNCH QUEUE!"
+                                btn.BackgroundColor3 = Color3.fromRGB(220, 150, 20) 
+                            end
+                        else
+                            local oldText = btn.Text
+                            btn.Text = "УЖЕ ВЗЯТО!"
+                            task.delay(1, function() if not isFlying then btn.Text = oldText end end)
+                        end
+                    end
+                elseif #selectedTargets == MAX_TARGETS then
+                    isFlying = true
+                    currentMissileIndex = 1
+                    launchNextMissile()
+                end
+            end
+        end)
+        
+        Rayfield:Notify({
+            Title = "Скрипт загружен",
+            Content = "Телекинез успешно активирован!",
+            Duration = 3,
+        })
+   end,
+})
